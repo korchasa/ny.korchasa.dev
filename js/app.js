@@ -176,6 +176,36 @@ class LLMEngine {
         this.currentBuffer = "";
     }
 
+    async checkCompatibility() {
+        const errors = [];
+
+        // 1. Check for WebGPU and WASM fallback
+        const hasWebGPU = !!navigator.gpu;
+        const hasWasm = typeof WebAssembly !== 'undefined';
+
+        if (!hasWebGPU && !hasWasm) {
+            errors.push("Your browser does not support WebGPU or WebAssembly, which are required to run neural models locally.");
+        }
+
+        // 2. Check for SharedArrayBuffer (often disabled without proper headers, but Transformers.js might need it for some features)
+        // Many browsers require cross-origin isolation for SAB.
+        if (typeof SharedArrayBuffer === 'undefined') {
+            console.warn("SharedArrayBuffer is not available. Performance may be degraded.");
+        }
+
+        // 3. Check Memory (navigator.deviceMemory)
+        // Note: navigator.deviceMemory is only available in some browsers (Chrome/Edge/Opera)
+        // and usually requires HTTPS.
+        if (navigator.deviceMemory && navigator.deviceMemory < 4) {
+            errors.push(`Your device has only ${navigator.deviceMemory}GB of RAM. At least 4GB is recommended for smooth operation of the model.`);
+        }
+
+        return {
+            compatible: errors.length === 0,
+            errors: errors
+        };
+    }
+
     resolveSpec() {
         this.config = {
             model: MODEL_CONFIG.model,
@@ -412,7 +442,8 @@ const ui = {
     langSelect: document.getElementById('lang-select'),
     thinkingIndicator: document.getElementById('thinking-indicator'),
     startBtn: document.getElementById('start-btn'),
-    spinner: document.querySelector('.spinner')
+    spinner: document.querySelector('.spinner'),
+    errorMessage: document.getElementById('error-message')
 };
 
 // --- UTILS: Typing & Queue ---
@@ -588,21 +619,37 @@ function autoStart() {
         });
     }
 
-    engine.onStatus = (msg, isReadySignal = false) => {
-        if (!hasStarted) {
-            ui.statusText.textContent = msg;
-        }
-
-        if (isReadySignal) {
-            if (ui.spinner) ui.spinner.classList.add('hidden');
-            if (ui.startBtn) ui.startBtn.textContent = engine.slopify("Enter the Void");
-
-            // If user already started, trigger the first generation
-            if (hasStarted && !engine.isGenerating && queue.length === 0 && !isTyping) {
-                engine.generateGreeting();
+    // Initial Compatibility Check
+    engine.checkCompatibility().then(res => {
+        if (!res.compatible) {
+            ui.errorMessage.innerHTML = res.errors.join('<br><br>');
+            ui.errorMessage.classList.remove('hidden');
+            ui.statusText.classList.add('hidden');
+            ui.progress.classList.add('hidden');
+            ui.spinner.classList.add('hidden');
+            if (ui.startBtn) {
+                ui.startBtn.disabled = true;
+                ui.startBtn.textContent = "Incompatible Device";
             }
+            return;
         }
-    };
+
+        engine.onStatus = (msg, isReadySignal = false) => {
+            if (!hasStarted) {
+                ui.statusText.textContent = msg;
+            }
+
+            if (isReadySignal) {
+                if (ui.spinner) ui.spinner.classList.add('hidden');
+                if (ui.startBtn) ui.startBtn.textContent = engine.slopify("Enter the Void");
+
+                // If user already started, trigger the first generation
+                if (hasStarted && !engine.isGenerating && queue.length === 0 && !isTyping) {
+                    engine.generateGreeting();
+                }
+            }
+        };
+    });
 
     engine.onProgress = (pct) => {
         ui.progressFill.style.width = `${pct}%`;

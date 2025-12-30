@@ -411,3 +411,32 @@ h1 {
 .hidden {
     display: none !important;
 }
+.error-message {
+    color: var(--accent-error);
+    background: rgba(255, 95, 95, 0.1);
+    border: 1px solid rgba(255, 95, 95, 0.3);
+    padding: 1.5rem;
+    border-radius: 12px;
+    max-width: 400px;
+    margin: 1rem 0;
+    line-height: 1.5;
+    font-size: 0.95rem;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+.glass-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(1);
+    transform: none !important;
+    box-shadow: none !important;
+}
