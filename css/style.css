@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Fira+Code:wght@400&display=swap');
 
 :root {
-    --bg: #050510;
-    --text-primary: #e0e6ed;
-    --text-secondary: #94a3b8;
-    --accent-cyan: #00f3ff;
+    --bg: #1a0f0f;
+    --text-primary: #fff8e7;
+    --text-secondary: #d1c4b8;
+    --accent-cyan: #ffd700;
     --accent-warm: #ffb000;
     --accent-error: #ff5f5f;
-    --glass: rgba(15, 23, 42, 0.6);
-    --border: rgba(255, 255, 255, 0.1);
+    --glass: rgba(40, 20, 20, 0.7);
+    --border: rgba(255, 215, 0, 0.2);
 }
 
 * {
@@ -23,6 +23,10 @@ html {
     width: 100%;
     overflow: hidden;
     background-color: var(--bg);
+    background-image: url('../assets/christmas_bg.png');
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: soft-light;
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
 }
@@ -242,4 +246,57 @@ h1 {
     .greeting-content {
         padding: 2rem;
     }
+}
+
+/* App Header & Language Selector */
+.app-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    z-index: 100;
+    pointer-events: none;
+    /* Let clicks pass through, but re-enable for children */
+}
+
+.glass-select {
+    pointer-events: auto;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(40, 20, 20, 0.4);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 8px;
+    padding: 0.5rem 2.5rem 0.5rem 1rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    /* Custom Arrow */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.5 4.5L6 8L9.5 4.5' stroke='%23d1c4b8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+}
+
+.glass-select:hover {
+    background-color: rgba(60, 30, 30, 0.6);
+    border-color: var(--accent-cyan);
+    color: var(--text-primary);
+}
+
+.glass-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+}
+
+/* Option styling is limited in standard select, but basic colors work */
+.glass-select option {
+    background-color: #1a0f0f;
+    color: var(--text-primary);
 }

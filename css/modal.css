@@ -21,7 +21,8 @@
 }
 
 .modal {
-    background: rgba(15, 23, 42, 0.9);
+    background: var(--glass);
+    backdrop-filter: blur(16px);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 24px;
@@ -177,7 +178,8 @@ input[type="range"]::-webkit-slider-runnable-track {
     border-radius: 2px;
 }
 
-select, input[type="text"] {
+select,
+input[type="text"] {
     width: 100%;
     padding: 10px;
     border-radius: 8px;
@@ -192,4 +194,3 @@ input[type="text"]::placeholder {
     color: var(--text-secondary);
     opacity: 0.5;
 }
-

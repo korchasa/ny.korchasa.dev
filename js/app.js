@@ -1,9 +1,36 @@
 import { WORKER_CODE } from './llm-worker.js';
 import { LANGUAGES, DEFAULT_LANG } from './languages.js';
-import { SPECS, DEFAULT_SPEC_ID } from './specs.js';
 
-// --- VISUALS: Neural Winter Background ---
-class NeuralBackground {
+const MODEL_CONFIG = {
+    id: "smollm2-135m",
+    name: "SmolLM2 135M",
+    model: "onnx-community/SmolLM2-135M-Instruct-ONNX-MHA",
+    hardware: "webgpu",
+    dtype: "q4",
+    params: {
+        temperature: 0.5,
+        max_new_tokens: 2048,
+        repetition_penalty: 1.2,
+        top_p: 0.9,
+    }
+};
+
+// const MODEL_CONFIG = {
+//     id: "qwen3-0.6b",
+//     name: "Qwen3 0.6B",
+//     model: "onnx-community/Qwen3-0.6B-ONNX",
+//     hardware: "webgpu",
+//     dtype: "q4",
+//     params: {
+//       temperature: 0.7,
+//       max_new_tokens: 4096,
+//       repetition_penalty: 1.15,
+//       top_p: 0.9,
+//     }
+//   };
+
+// --- VISUALS: Snowfall Background ---
+class SnowfallBackground {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
@@ -22,16 +49,15 @@ class NeuralBackground {
     initParticles() {
         this.particles = [];
         // Density based on screen size
-        const count = Math.min(150, (this.canvas.width * this.canvas.height) / 12000);
+        const count = Math.min(200, (this.canvas.width * this.canvas.height) / 8000);
         for (let i = 0; i < count; i++) {
             this.particles.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,
-                vx: (Math.random() - 0.5) * 0.4,
-                vy: (Math.random() - 0.5) * 0.4 + 0.1, // Slight downward drift
-                size: Math.random() * 2 + 0.5,
-                alpha: Math.random() * 0.6 + 0.1,
-                pulse: Math.random() * Math.PI
+                vx: (Math.random() - 0.5) * 0.5, // Wind
+                vy: Math.random() * 1.5 + 0.5,   // Fall speed
+                size: Math.random() * 2 + 1,
+                alpha: Math.random() * 0.5 + 0.2
             });
         }
     }
@@ -39,42 +65,26 @@ class NeuralBackground {
     animate() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Draw Particles
         this.particles.forEach(p => {
             p.x += p.vx;
             p.y += p.vy;
-            p.pulse += 0.03;
+
+            // Simple wind variation
+            p.x += Math.sin(p.y * 0.01) * 0.2;
 
             // Wrap around
-            if (p.y > this.canvas.height) p.y = 0;
+            if (p.y > this.canvas.height) {
+                p.y = -5;
+                p.x = Math.random() * this.canvas.width;
+            }
             if (p.x > this.canvas.width) p.x = 0;
             if (p.x < 0) p.x = this.canvas.width;
-            if (p.y < 0) p.y = this.canvas.height;
 
-            const alpha = p.alpha + Math.sin(p.pulse) * 0.15;
-            this.ctx.fillStyle = `rgba(0, 243, 255, ${Math.max(0, Math.min(1, alpha))})`;
+            this.ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             this.ctx.fill();
         });
-
-        // Draw Connections
-        this.ctx.strokeStyle = 'rgba(165, 180, 252, 0.08)';
-        this.ctx.lineWidth = 0.5;
-        for (let i = 0; i < this.particles.length; i++) {
-            for (let j = i + 1; j < this.particles.length; j++) {
-                const dx = this.particles[i].x - this.particles[j].x;
-                const dy = this.particles[i].y - this.particles[j].y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                if (dist < 120) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
-                    this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
-                    this.ctx.stroke();
-                }
-            }
-        }
 
         requestAnimationFrame(() => this.animate());
     }
@@ -112,14 +122,12 @@ class LLMEngine {
     }
 
     resolveSpec() {
-        this.currentSpec = SPECS[0];
-
         this.config = {
-            model: this.currentSpec.model,
-            device: this.currentSpec.hardware === 'webgpu' && navigator.gpu ? 'webgpu' : 'wasm',
-            dtype: this.currentSpec.dtype
+            model: MODEL_CONFIG.model,
+            device: MODEL_CONFIG.hardware === 'webgpu' && navigator.gpu ? 'webgpu' : 'wasm',
+            dtype: MODEL_CONFIG.dtype
         };
-        console.log("Resolved Spec:", this.currentSpec);
+        console.log("Model Config:", MODEL_CONFIG);
     }
 
     detectLang() {
@@ -211,19 +219,17 @@ class LLMEngine {
         this.isGenerating = true;
 
         const promptData = this.buildPrompt();
-        const specParams = this.currentSpec.params;
-
         const request = {
             type: "generate",
             requestId: Date.now(),
             messages: promptData.messages,
             prompt: promptData.fallbackPrompt,
             options: {
-                max_new_tokens: specParams.max_new_tokens,
-                temperature: specParams.temperature,
-                top_p: specParams.top_p,
+                max_new_tokens: MODEL_CONFIG.params.max_new_tokens,
+                temperature: MODEL_CONFIG.params.temperature,
+                top_p: MODEL_CONFIG.params.top_p,
                 do_sample: true,
-                repetition_penalty: specParams.repetition_penalty
+                repetition_penalty: MODEL_CONFIG.params.repetition_penalty
             }
         };
 
@@ -271,7 +277,8 @@ const ui = {
     statusText: document.getElementById('status-text'),
     progress: document.getElementById('progress-track'),
     progressFill: document.querySelector('.progress-fill'),
-    pauseOverlay: document.getElementById('pause-overlay')
+    pauseOverlay: document.getElementById('pause-overlay'),
+    langSelect: document.getElementById('lang-select')
 };
 
 const engine = new LLMEngine();
@@ -280,7 +287,7 @@ let isPaused = false;
 let currentBlock = null;
 
 // Background
-new NeuralBackground('bg-canvas');
+new SnowfallBackground('bg-canvas');
 
 // Pause Logic
 function togglePause() {
@@ -306,8 +313,37 @@ document.body.addEventListener('click', () => {
     togglePause();
 });
 
+function initLangSelector() {
+    // Populate options
+    const langs = Object.keys(LANGUAGES);
+    langs.forEach(code => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = LANGUAGES[code].name;
+        ui.langSelect.appendChild(opt);
+    });
+
+    // Set initial value
+    ui.langSelect.value = engine.langCode;
+
+    // Handle change
+    ui.langSelect.addEventListener('change', (e) => {
+        const newLang = e.target.value;
+        if (LANGUAGES[newLang]) {
+            engine.langCode = newLang;
+            engine.langName = LANGUAGES[newLang].name;
+            console.log("Language changed to:", engine.langName);
+
+            // Optional: visual feedback or immediate regeneration?
+            // Existing flow will pick it up on next cycle.
+            // If paused, it stays paused.
+        }
+    });
+}
+
 // Auto-start sequence
 function autoStart() {
+    initLangSelector();
     ui.progress.classList.add('visible');
 
     engine.onStatus = (msg) => {

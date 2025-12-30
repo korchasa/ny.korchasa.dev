@@ -21,9 +21,6 @@ The entry point. Orchestrates the `LLMEngine`, `NeuralBackground`, and UI update
 ### [llm-worker.js](file:///Users/korchasa/www/sandbox/llmhny/js/llm-worker.js)
 The Web Worker code (exported as a string to avoid CORS issues). Loads the model and runs the inference using `@huggingface/transformers`.
 
-### [specs.js](file:///Users/korchasa/www/sandbox/llmhny/js/specs.js)
-Configuration for the LLM models. Defines model IDs, hardware requirements (WebGPU/WASM), and sampling parameters.
-
 ### [languages.js](file:///Users/korchasa/www/sandbox/llmhny/js/languages.js)
 Contains system prompts and user templates for all supported languages.
 
@@ -43,8 +40,8 @@ The single-page entry point with a minimal UI ("Neuromorphic Dark Mode").
 3.  The UI will automatically populate the language in the Settings modal.
 
 ### Updating Models
-1.  Open [specs.js](file:///Users/korchasa/www/sandbox/llmhny/js/specs.js).
-2.  Add or modify a spec in the `SPECS` array.
+1.  Open [app.js](file:///Users/korchasa/www/sandbox/llmhny/js/app.js).
+2.  Modify the `MODEL_CONFIG` object.
 3.  Ensure the `model` ID is compatible with [transformers.js](https://huggingface.co/docs/transformers.js).
 
 ## How to Run
