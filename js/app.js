@@ -149,6 +149,7 @@ class LLMEngine {
 
         // Filtering state
         this.isThinking = false;
+        this.currentBuffer = "";
     }
 
     resolveSpec() {
@@ -217,11 +218,25 @@ class LLMEngine {
                 break;
             }
             case "token":
-                this.onToken(msg.text);
+                // Internal accumulation for buffering
+                if (msg.text.includes('<think>')) {
+                    this.isThinking = true;
+                    return;
+                }
+                if (msg.text.includes('</think>')) {
+                    this.isThinking = false;
+                    const parts = msg.text.split('</think>');
+                    if (parts[1]) this.currentBuffer += parts[1];
+                    return;
+                }
+                if (this.isThinking) return;
+                this.currentBuffer += msg.text;
+                this.onToken(msg.text); // keep for legacy/progress if needed, though we'll use buffer
                 break;
             case "done": {
                 this.isGenerating = false;
-                const cleanText = this.normalizeText(msg.text);
+                const cleanText = this.normalizeText(this.currentBuffer || msg.text);
+                this.currentBuffer = ""; // Reset
                 this.history.push(cleanText);
                 if (this.history.length > 5) this.history.shift();
                 this.onComplete(cleanText);
@@ -311,10 +326,57 @@ const ui = {
     langSelect: document.getElementById('lang-select')
 };
 
+// --- UTILS: Typing & Queue ---
+class GreetingQueue {
+    constructor() {
+        this.queue = [];
+        this.onNewItem = null;
+    }
+    push(item) {
+        this.queue.push(item);
+        if (this.onNewItem) this.onNewItem();
+    }
+    pop() {
+        return this.queue.shift();
+    }
+    get length() {
+        return this.queue.length;
+    }
+}
+
+class Typewriter {
+    static async type(text, container, checkPause) {
+        for (let i = 0; i < text.length; i++) {
+            // Check for pause
+            while (checkPause()) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            const char = text[i];
+            const span = document.createElement('span');
+            span.textContent = char;
+            container.appendChild(span);
+
+            // Auto-scroll
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth'
+            });
+
+            // Human-like delay
+            let delay = 30 + Math.random() * 50;
+            if ('.!?'.includes(char)) delay = 400 + Math.random() * 200;
+            else if (',;:'.includes(char)) delay = 200 + Math.random() * 100;
+
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+}
+
 const engine = new LLMEngine();
-let loopTimer = null;
+const queue = new GreetingQueue();
+let isTyping = false;
 let isPaused = false;
-let currentBlock = null;
 
 // Background
 new SnowfallBackground('bg-canvas');
@@ -326,14 +388,9 @@ function togglePause() {
     if (isPaused) {
         ui.pauseOverlay.classList.remove('hidden');
         ui.pauseOverlay.classList.add('visible');
-        if (loopTimer) clearTimeout(loopTimer);
     } else {
         ui.pauseOverlay.classList.remove('visible');
         setTimeout(() => ui.pauseOverlay.classList.add('hidden'), 300);
-        // Resume if not generating
-        if (!engine.isGenerating) {
-            nextCycle();
-        }
     }
 }
 
@@ -384,7 +441,7 @@ function autoStart() {
                 // Done loading
                 ui.intro.style.display = 'none'; // Hard hide to prevent interaction
                 ui.greetingDisplay.classList.add('active'); // Helper class, though we removed it from CSS, helpful for logical state
-                nextCycle();
+                engine.generateGreeting();
             }
         }
     };
@@ -394,71 +451,55 @@ function autoStart() {
     };
 
     engine.onToken = (text) => {
-        // Strip think tags
-        if (text.includes('<think>')) {
-            engine.isThinking = true;
-            return;
-        }
-        if (text.includes('</think>')) {
-            engine.isThinking = false;
-            // potential trail content
-            const parts = text.split('</think>');
-            if(parts[1]) appendText(parts[1]);
-            return;
-        }
-        if (engine.isThinking) return;
-
-        appendText(text);
+        // We now buffer tokens internally in LLMEngine
     };
 
-    engine.onComplete = () => {
-        // Prune old text after each generation
-        pruneOldText();
-
-        if (!isPaused) {
-            loopTimer = setTimeout(nextCycle, 2000); // 2 seconds between greetings for flow
-        }
+    engine.onComplete = (text) => {
+        queue.push(text);
+        processQueue();
     };
 
     engine.onError = (err) => {
         console.error("LLM Error:", err);
-        // Retry
-        setTimeout(nextCycle, 5000);
+        // Retry if queue is empty
+        if (queue.length === 0) {
+            setTimeout(() => engine.generateGreeting(), 5000);
+        }
     };
 
     engine.init();
 }
 
-function appendText(text) {
-    if (!currentBlock) return;
+async function processQueue() {
+    if (isTyping || queue.length === 0) return;
+    isTyping = true;
 
-    const span = document.createElement('span');
-    span.textContent = text;
-    currentBlock.appendChild(span);
+    const text = queue.pop();
 
-    // Auto-scroll logic
-    // We want to scroll to the bottom of the page
-    window.scrollTo(0, document.body.scrollHeight);
+    // Start generating NEXT message immediately as we start typing this one
+    // This satisfies the "1 message in buffer" requirement.
+    engine.generateGreeting();
+
+    const block = createGreetingBlock();
+    await Typewriter.type(text, block, () => isPaused);
+
+    isTyping = false;
+    pruneOldText();
+
+    // Check if we can start the next one from buffer
+    processQueue();
 }
 
-function nextCycle() {
-    if (!engine.isReady || isPaused) return;
+function createGreetingBlock() {
+    const block = document.createElement('div');
+    block.className = 'greeting-block';
 
-    // Create new block
-    currentBlock = document.createElement('div');
-    currentBlock.className = 'greeting-block';
-
-    // Create text container
     const textDiv = document.createElement('div');
     textDiv.className = 'greeting-text';
-    currentBlock.appendChild(textDiv);
+    block.appendChild(textDiv);
 
-    ui.greetingContent.appendChild(currentBlock);
-
-    // Update reference to where we append text
-    currentBlock = textDiv; // Dirty hack: reuse currentBlock to point to the inner div
-
-    engine.generateGreeting();
+    ui.greetingContent.appendChild(block);
+    return textDiv;
 }
 
 function pruneOldText() {
