@@ -23,7 +23,7 @@ const MODEL_CONFIG = {
     dtype: "q4f16",
     params: {
       temperature: 0.4,
-      max_new_tokens: 4096,
+      max_new_tokens: 2048,
       repetition_penalty: 1.15,
       top_p: 0.9,
     }
