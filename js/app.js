@@ -145,6 +145,7 @@ class LLMEngine {
         this.onProgress = () => {};
         this.onToken = () => {};
         this.onComplete = () => {};
+        this.onStart = () => {};
         this.onError = () => {};
 
         // Filtering state
@@ -306,6 +307,7 @@ class LLMEngine {
         console.log("Full Request Object:", request);
         console.groupEnd();
 
+        this.onStart();
         this.worker.postMessage(request);
 
         // Watchdog timeout: if we don't get 'done' or 'error' in 120s, something is wrong
@@ -357,7 +359,8 @@ const ui = {
     progress: document.getElementById('progress-track'),
     progressFill: document.querySelector('.progress-fill'),
     pauseOverlay: document.getElementById('pause-overlay'),
-    langSelect: document.getElementById('lang-select')
+    langSelect: document.getElementById('lang-select'),
+    thinkingIndicator: document.getElementById('thinking-indicator')
 };
 
 // --- UTILS: Typing & Queue ---
@@ -484,12 +487,18 @@ function autoStart() {
     };
 
     engine.onComplete = (text) => {
+        ui.thinkingIndicator.classList.remove('visible');
         queue.push(text);
         processQueue();
     };
 
+    engine.onStart = () => {
+        ui.thinkingIndicator.classList.add('visible');
+    };
+
     engine.onError = (err) => {
         console.error("LLM Error:", err);
+        ui.thinkingIndicator.classList.remove('visible');
         // Retry if queue is empty
         if (queue.length === 0) {
             setTimeout(() => engine.generateGreeting(), 5000);
