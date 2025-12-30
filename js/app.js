@@ -80,10 +80,40 @@ class SnowfallBackground {
             if (p.x > this.canvas.width) p.x = 0;
             if (p.x < 0) p.x = this.canvas.width;
 
-            this.ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+            // --- GLITCH EFFECTS ---
+            let drawX = p.x;
+            let drawY = p.y;
+            let drawSize = p.size;
+            let drawAlpha = p.alpha;
+            let shape = 'circle';
+
+            // 1. Position Jitter (Teleport) - low chance
+            if (Math.random() < 0.005) {
+                drawX += (Math.random() - 0.5) * 50;
+                drawY += (Math.random() - 0.5) * 20;
+            }
+
+            // 2. Shape Artifact (Square or Line) - low chance
+            if (Math.random() < 0.01) {
+                shape = Math.random() > 0.5 ? 'square' : 'line';
+            }
+
+            // 3. Alpha Flicker - medium chance
+            if (Math.random() < 0.05) {
+                drawAlpha = Math.random();
+            }
+
+            this.ctx.fillStyle = `rgba(255, 255, 255, ${drawAlpha})`;
             this.ctx.beginPath();
-            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            this.ctx.fill();
+
+            if (shape === 'square') {
+                this.ctx.fillRect(drawX, drawY, drawSize * 2, drawSize * 2);
+            } else if (shape === 'line') {
+                this.ctx.fillRect(drawX - 10, drawY, 20, 2);
+            } else {
+                this.ctx.arc(drawX, drawY, drawSize, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         });
 
         requestAnimationFrame(() => this.animate());
