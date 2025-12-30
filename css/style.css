@@ -411,6 +411,7 @@ h1 {
 .hidden {
     display: none !important;
 }
+
 .error-message {
     color: var(--accent-error);
     background: rgba(255, 95, 95, 0.1);
@@ -423,14 +424,31 @@ h1 {
     font-size: 0.95rem;
     text-align: center;
     backdrop-filter: blur(5px);
-    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+    animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
 }
 
 @keyframes shake {
-    10%, 90% { transform: translate3d(-1px, 0, 0); }
-    20%, 80% { transform: translate3d(2px, 0, 0); }
-    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-    40%, 60% { transform: translate3d(4px, 0, 0); }
+
+    10%,
+    90% {
+        transform: translate3d(-1px, 0, 0);
+    }
+
+    20%,
+    80% {
+        transform: translate3d(2px, 0, 0);
+    }
+
+    30%,
+    50%,
+    70% {
+        transform: translate3d(-4px, 0, 0);
+    }
+
+    40%,
+    60% {
+        transform: translate3d(4px, 0, 0);
+    }
 }
 
 .glass-button:disabled {
@@ -439,4 +457,52 @@ h1 {
     filter: grayscale(1);
     transform: none !important;
     box-shadow: none !important;
+}
+
+/* Resource Monitor */
+.resource-monitor {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: rgba(40, 20, 20, 0.4);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    z-index: 1000;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    min-width: 180px;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.monitor-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.monitor-row .label {
+    opacity: 0.6;
+    letter-spacing: 0.05em;
+}
+
+.monitor-row .value {
+    color: var(--accent-cyan);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.monitor-row .unit {
+    border-bottom: 1px dotted var(--accent-cyan);
+    cursor: help;
+    margin-left: 4px;
+    opacity: 0.8;
+    pointer-events: auto;
+    /* Enable hover/tooltip since parent is pointer-events: none */
 }

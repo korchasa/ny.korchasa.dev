@@ -62,6 +62,7 @@ class SnowfallBackground {
     }
 
     animate() {
+        const frameStart = performance.now();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const globalGlitch = Math.random() < 0.002;
@@ -138,6 +139,14 @@ class SnowfallBackground {
                 this.ctx.fill();
             }
         });
+
+        const frameDuration = performance.now() - frameStart;
+        if (window.performanceMonitor) {
+            window.performanceMonitor.recordSnow(
+                frameDuration,
+                (this.canvas.width * this.canvas.height * 4) / (1024 * 1024)
+            );
+        }
 
         requestAnimationFrame(() => this.animate());
     }
@@ -292,6 +301,10 @@ class LLMEngine {
 
                 this.currentBuffer += msg.text;
                 this.onToken(msg.text);
+
+                if (msg.busyTime && window.performanceMonitor) {
+                    window.performanceMonitor.recordLLM(msg.busyTime);
+                }
                 break;
             case "done": {
                 if (this.generationTimeout) clearTimeout(this.generationTimeout);
@@ -307,8 +320,19 @@ class LLMEngine {
                 this.history.push(cleanText);
                 if (this.history.length > 5) this.history.shift();
                 this.onComplete(cleanText);
+
+                if (msg.totalBusyTime && window.performanceMonitor) {
+                    // We don't want to double count, but totalBusyTime is for the whole gen.
+                    // Actually, tokens already reported their segment busy times.
+                    // This is only for the final wrapping.
+                }
                 break;
             }
+            case "stats":
+                if (msg.busyTime && window.performanceMonitor) {
+                    window.performanceMonitor.recordLLM(msg.busyTime);
+                }
+                break;
             case "error":
                 if (this.generationTimeout) clearTimeout(this.generationTimeout);
                 console.error("LLMEngine Message Error:", msg);
@@ -443,8 +467,91 @@ const ui = {
     thinkingIndicator: document.getElementById('thinking-indicator'),
     startBtn: document.getElementById('start-btn'),
     spinner: document.querySelector('.spinner'),
-    errorMessage: document.getElementById('error-message')
+    errorMessage: document.getElementById('error-message'),
+    monitor: {
+        llmMem: document.getElementById('llm-mem'),
+        llmCount: document.getElementById('llm-count'),
+        snowMem: document.getElementById('snow-mem'),
+        snowCount: document.getElementById('snow-count')
+    }
 };
+
+class PerformanceMonitor {
+    constructor() {
+        this.llmBusyTime = 0;
+        this.snowBusyTime = 0;
+        this.snowMem = 0;
+        this.llmMem = this.estimateLLMMemory();
+
+        this.history = []; // [{llm: ms, snow: ms, delta: ms}]
+        this.maxHistory = 10; // 5 seconds at 500ms interval
+        this.sampleCount = 0;
+        this.lastSampleTime = performance.now();
+
+        setInterval(() => this.sample(), 500);
+    }
+
+    estimateLLMMemory() {
+        const id = MODEL_CONFIG.id || "";
+        if (id.includes('qwen')) return 480;
+        if (id.includes('smollm')) return 160;
+        return 300;
+    }
+
+    recordLLM(ms) {
+        this.llmBusyTime += ms;
+    }
+
+    recordSnow(ms, memMB) {
+        this.snowBusyTime += ms;
+        this.snowMem = memMB;
+    }
+
+    sample() {
+        const now = performance.now();
+        const delta = now - this.lastSampleTime;
+        if (delta <= 0) return;
+
+        this.history.push({
+            llm: this.llmBusyTime,
+            snow: this.snowBusyTime,
+            delta: delta
+        });
+
+        if (this.history.length > this.maxHistory) {
+            this.history.shift();
+        }
+
+        // Reset current counters for next sample
+        this.llmBusyTime = 0;
+        this.snowBusyTime = 0;
+        this.lastSampleTime = now;
+
+        this.sampleCount++;
+        if (this.sampleCount >= this.maxHistory) {
+            this.updateUI();
+            this.sampleCount = 0;
+        }
+    }
+
+    updateUI() {
+        if (this.history.length === 0) return;
+
+        const totalLlm = this.history.reduce((a, b) => a + b.llm, 0);
+        const totalSnow = this.history.reduce((a, b) => a + b.snow, 0);
+        const totalDelta = this.history.reduce((a, b) => a + b.delta, 0);
+
+        // Formula: (BusyTime / Delta) * 500 Pentium Pro CPUs
+        const llmPPro = Math.round((totalLlm / totalDelta) * 500);
+        const snowPPro = Math.round((totalSnow / totalDelta) * 500);
+
+        ui.monitor.llmMem.textContent = `${this.llmMem} MB`;
+        ui.monitor.llmCount.textContent = llmPPro.toLocaleString();
+        ui.monitor.snowMem.textContent = `${this.snowMem.toFixed(1)} MB`;
+        ui.monitor.snowCount.textContent = snowPPro.toLocaleString();
+    }
+}
+window.performanceMonitor = new PerformanceMonitor();
 
 // --- UTILS: Typing & Queue ---
 class GreetingQueue {

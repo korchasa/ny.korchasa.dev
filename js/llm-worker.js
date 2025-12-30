@@ -37,10 +37,13 @@ async function loadModel({ model: modelId, device, dtype }) {
   if (dtype) opts.dtype = dtype;
 
   try {
+    const startTime = performance.now();
     tokenizer = await AutoTokenizer.from_pretrained(modelId, { progress_callback });
     model = await AutoModelForCausalLM.from_pretrained(modelId, opts);
+    const duration = performance.now() - startTime;
 
     post("status", { state: "ready", message: "Neural core active" });
+    post("stats", { busyTime: duration });
   } catch (e) {
     console.error("Worker loadModel error:", e);
     post("error", { message: e.message });
@@ -50,10 +53,15 @@ async function loadModel({ model: modelId, device, dtype }) {
 async function generate({ requestId, messages, prompt, options }) {
   if (!model || !tokenizer) throw new Error("Model not loaded");
 
+  let lastTokenTime = performance.now();
+
   const streamer = new TextStreamer(tokenizer, {
     skip_prompt: true,
     callback_function: (text) => {
-      post("token", { requestId, text });
+      const now = performance.now();
+      const busyTime = now - lastTokenTime;
+      lastTokenTime = now;
+      post("token", { requestId, text, busyTime });
     }
   });
 
@@ -67,6 +75,7 @@ async function generate({ requestId, messages, prompt, options }) {
   console.log(\`[Worker] Starting generation for \${requestId}\`, { text_start });
 
   try {
+    const generationStart = performance.now();
     const inputs = await tokenizer(text_start);
 
     const out = await model.generate({
@@ -77,9 +86,10 @@ async function generate({ requestId, messages, prompt, options }) {
 
     const decoded = tokenizer.batch_decode(out, { skip_special_tokens: true });
     let final = decoded[0];
+    const totalBusyTime = performance.now() - generationStart;
 
     console.log(\`[Worker] Finished generation for \${requestId}\`, { final });
-    post("done", { requestId, text: final });
+    post("done", { requestId, text: final, totalBusyTime });
 
   } catch (e) {
     console.error(\`[Worker] Generation error for \${requestId}:\`, e);
