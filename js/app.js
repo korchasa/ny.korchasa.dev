@@ -447,7 +447,15 @@ let isPaused = true; // Start paused to wait for user interaction
 // Background Music
 const bgMusic = new Audio('assets/song.mp3');
 bgMusic.loop = true;
+bgMusic.preload = 'auto';
 bgMusic.volume = 0.4;
+
+// Robust looping fallback
+bgMusic.addEventListener('ended', function() {
+    this.currentTime = 0;
+    this.play().catch(e => console.error("Audio loop retry failed:", e));
+}, false);
+
 let hasStarted = false; // Track if user has pressed 'Start'
 
 // Background
