@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>∞ New Year Greetings (Local Micro-LLM in Browser)</title>
+  <style>
+    :root{
+      --bg1:#06070f; --bg2:#0a1030; --card:#0f173a88;
+      --text:#eaf0ff; --muted:#a8b3d6; --accent:#b7f7ff;
+      --ok:#99ffcc; --warn:#ffe08a; --bad:#ff9aa2;
+      --border:#ffffff22;
+    }
+    html,body{height:100%; margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;}
+    body{
+      color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 20% 10%, #1b2b6a66 0%, transparent 60%),
+        radial-gradient(1000px 700px at 80% 30%, #0aa6b566 0%, transparent 55%),
+        linear-gradient(140deg, var(--bg1), var(--bg2));
+      overflow:hidden;
+    }
+    .wrap{
+      height:100%;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:12px;
+      padding:14px;
+      box-sizing:border-box;
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:12px 14px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:linear-gradient(180deg, #0b1330aa, #0a1024aa);
+      backdrop-filter: blur(10px);
+    }
+    .title{
+      display:flex; flex-direction:column; gap:2px;
+      min-width: 260px;
+    }
+    .title h1{
+      margin:0; font-size:16px; letter-spacing:0.2px; font-weight:700;
+    }
+    .title .sub{
+      font-size:12px; color:var(--muted);
+    }
+    .controls{
+      display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:flex-end;
+    }
+    .pill{
+      display:flex; gap:8px; align-items:center;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:8px 10px;
+      background:var(--card);
+      backdrop-filter: blur(10px);
+      font-size:12px;
+      color:var(--muted);
+    }
+    select, input[type="number"], input[type="text"]{
+      background:#0b1330;
+      border:1px solid var(--border);
+      color:var(--text);
+      border-radius:10px;
+      padding:6px 8px;
+      outline:none;
+      font-size:12px;
+    }
+    input[type="range"]{ width:140px; }
+    label{ user-select:none; }
+    button{
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, #0f1b45, #0a1024);
+      color:var(--text);
+      border-radius:14px;
+      padding:9px 12px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    button:hover{ filter:brightness(1.1); }
+    button:active{ transform: translateY(1px); }
+    button.secondary{
+      background:transparent;
+      color:var(--muted);
+      font-weight:600;
+    }
+    button.danger{ color:#ffe1e3; border-color:#ff9aa244; }
+    main{
+      border:1px solid var(--border);
+      border-radius:18px;
+      background:linear-gradient(180deg, #0a1024aa, #070b18aa);
+      backdrop-filter: blur(10px);
+      overflow:hidden;
+      display:grid;
+      grid-template-columns: 340px 1fr;
+      min-height:0;
+    }
+    .sidebar{
+      border-right:1px solid var(--border);
+      padding:14px;
+      overflow:auto;
+      min-height:0;
+    }
+    .sidebar h2{ margin:0 0 10px 0; font-size:13px; color:var(--muted); letter-spacing:0.2px; }
+    .grid{
+      display:grid; grid-template-columns: 1fr; gap:10px;
+    }
+    .row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .row .k{ color:var(--muted); font-size:12px; }
+    .row .v{ display:flex; gap:8px; align-items:center; }
+    .hint{ color:var(--muted); font-size:12px; line-height:1.35; }
+    .status{
+      margin-top:12px;
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:10px;
+      background:#0b1330aa;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .bar{
+      height:8px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      overflow:hidden;
+      margin-top:8px;
+      background:#00000022;
+    }
+    .bar > div{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, #7dd3fc, #a7f3d0);
+      transition: width .2s ease;
+    }
+    .feed{
+      padding:14px;
+      overflow:auto;
+      min-height:0;
+    }
+    .feed .topline{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      margin-bottom:10px;
+    }
+    .feed .topline .note{
+      color:var(--muted);
+      font-size:12px;
+    }
+    .greeting{
+      border:1px solid var(--border);
+      border-radius:16px;
+      padding:12px 12px 10px 12px;
+      background: #0b1330aa;
+      margin-bottom:10px;
+      white-space:pre-wrap;
+      line-height:1.35;
+      position:relative;
+    }
+    .greeting .meta{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      margin-bottom:6px; color:var(--muted); font-size:11px;
+    }
+    .greeting .meta .tag{
+      border:1px solid var(--border);
+      padding:2px 8px;
+      border-radius:999px;
+      background:#00000022;
+    }
+    .footer{
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      padding:10px 14px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:linear-gradient(180deg, #0a1024aa, #070b18aa);
+      backdrop-filter: blur(10px);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .kbd{
+      border:1px solid var(--border);
+      border-bottom-color:#ffffff33;
+      padding:2px 8px;
+      border-radius:8px;
+      background:#00000022;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      color:var(--text);
+      font-size:11px;
+    }
+    .tiny{ font-size:11px; color:var(--muted); }
+    .toggle{
+      display:flex; align-items:center; gap:8px;
+    }
+    .toggle input{ transform: scale(1.1); }
+    @media (max-width: 980px){
+      main{ grid-template-columns: 1fr; }
+      .sidebar{ border-right:none; border-bottom:1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>∞ New Year Greetings — Local Micro-LLM Right in HTML</h1>
+        <div class="sub">Model loads and runs in the browser (WebGPU or CPU/WASM). Can be displayed on TV as background.</div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">▶ Start</button>
+        <button id="stopBtn" class="danger">■ Stop</button>
+        <button id="nextBtn" class="secondary">↻ Next</button>
+        <button id="clearBtn" class="secondary">🧹 Clear</button>
+      </div>
+    </header>
+
+    <main>
+      <aside class="sidebar">
+        <h2>Generation Settings</h2>
+        <div class="grid">
+          <div class="row">
+            <div class="k">Language</div>
+            <div class="v">
+              <select id="lang">
+                <option value="ru">Russian</option>
+                <option value="en" selected>English</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">To Whom</div>
+            <div class="v">
+              <select id="audience">
+                <option value="friend" selected>friend</option>
+                <option value="family">family</option>
+                <option value="colleague">colleague</option>
+                <option value="client">clients</option>
+                <option value="universal">universal</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Style</div>
+            <div class="v">
+              <select id="style">
+                <option value="warm" selected>warm</option>
+                <option value="funny">with humor</option>
+                <option value="formal">formal</option>
+                <option value="poetic">poetic</option>
+                <option value="ai">tech-AI (AI associations)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Length</div>
+            <div class="v">
+              <select id="length">
+                <option value="short">short</option>
+                <option value="medium" selected>medium</option>
+                <option value="long">long</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Interval (sec)</div>
+            <div class="v">
+              <input id="interval" type="number" min="2" max="120" value="7" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Temperature</div>
+            <div class="v">
+              <input id="temp" type="range" min="0.1" max="1.4" value="0.9" step="0.05" />
+              <span id="tempVal" class="tiny">0.90</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Max Tokens</div>
+            <div class="v">
+              <input id="maxNew" type="number" min="16" max="256" value="96" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Model</div>
+            <div class="v">
+              <select id="model">
+                <option value="HuggingFaceTB/SmolLM2-135M-Instruct" selected>SmolLM2-135M-Instruct (small)</option>
+                <option value="onnx-community/Qwen2.5-0.5B-Instruct">Qwen2.5-0.5B-Instruct (better RU, heavier)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Acceleration</div>
+            <div class="v toggle">
+              <input id="useWebGPU" type="checkbox" />
+              <label for="useWebGPU">WebGPU</label>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">dtype (weights)</div>
+            <div class="v">
+              <select id="dtype">
+                <option value="">auto</option>
+                <option value="q4" selected>q4 (usually smaller/faster)</option>
+                <option value="q8">q8</option>
+                <option value="fp16">fp16</option>
+                <option value="fp32">fp32</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="k">Custom Theme</div>
+            <div class="v" style="width:100%;">
+              <input id="theme" type="text" placeholder="e.g.: 'for devops', 'about health', 'about success'" style="width:100%;" />
+            </div>
+          </div>
+
+          <div class="hint">
+            Tip: if you need instant "Stop" — it restarts the worker (interrupts computation).
+          </div>
+
+          <div class="status" id="statusBox">
+            <div id="statusLine">Status: not started</div>
+            <div class="bar"><div id="barFill"></div></div>
+            <div id="statusTiny" class="tiny" style="margin-top:6px;"></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="feed">
+        <div class="topline">
+          <div class="note">Greetings stream (new ones on top). For manual: <span class="kbd">Enter</span> — next.</div>
+          <div class="note" id="capability"></div>
+        </div>
+        <div id="feed"></div>
+      </section>
+    </main>
+
+    <div class="footer">
+      <div>Runs locally in browser: model weights are downloaded once and cached (usually). First start may be slow.</div>
+      <div class="tiny">Tip: for TV, enable browser's fullscreen mode.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    // UI elements
+    const $ = (id) => document.getElementById(id);
+    const startBtn = $("startBtn");
+    const stopBtn = $("stopBtn");
+    const nextBtn = $("nextBtn");
+    const clearBtn = $("clearBtn");
+
+    const langSel = $("lang");
+    const audienceSel = $("audience");
+    const styleSel = $("style");
+    const lengthSel = $("length");
+    const intervalInp = $("interval");
+    const tempInp = $("temp");
+    const tempVal = $("tempVal");
+    const maxNewInp = $("maxNew");
+    const modelSel = $("model");
+    const useWebGPUChk = $("useWebGPU");
+    const dtypeSel = $("dtype");
+    const themeInp = $("theme");
+
+    const statusLine = $("statusLine");
+    const statusTiny = $("statusTiny");
+    const barFill = $("barFill");
+    const feed = $("feed");
+    const capability = $("capability");
+
+    tempInp.addEventListener("input", () => {
+      tempVal.textContent = Number(tempInp.value).toFixed(2);
+    });
+
+    // Capability info
+    const webgpuAvailable = !!navigator.gpu;
+    capability.textContent = webgpuAvailable
+      ? "WebGPU: available ✅"
+      : "WebGPU: unavailable (will use CPU/WASM)";
+
+    useWebGPUChk.disabled = !webgpuAvailable;
+
+    // State
+    const state = {
+      running: false,
+      worker: null,
+      loadPromise: null,
+      loadResolve: null,
+      loadReject: null,
+      pending: new Map(),     // requestId -> { el, startedAt }
+      requestId: 0,
+      currentEl: null,
+      history: [],
+      historyMax: 5,
+      timer: null,
+      llmBroken: false,
+    };
+
+    function setStatus(line, tiny = "", pct = null, color = null) {
+      statusLine.textContent = line;
+      statusTiny.textContent = tiny || "";
+      if (pct == null) barFill.style.width = "0%";
+      else barFill.style.width = Math.max(0, Math.min(100, pct)) + "%";
+      if (color) statusLine.style.color = color;
+      else statusLine.style.color = "";
+    }
+
+    function nowTag() {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2,"0");
+      const mm = String(d.getMinutes()).padStart(2,"0");
+      const ss = String(d.getSeconds()).padStart(2,"0");
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function targetNewYear() {
+      const d = new Date();
+      // if December — congratulate with the upcoming New Year (year+1)
+      return d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear();
+    }
+
+    function escapeForPrompt(s) {
+      return (s || "").replace(/\s+/g, " ").trim().slice(0, 220);
+    }
+
+    function buildMessagesAndPrompt() {
+      const lang = langSel.value;
+      const audience = audienceSel.value;
+      const style = styleSel.value;
+      const len = lengthSel.value;
+      const theme = (themeInp.value || "").trim();
+      const year = targetNewYear();
+
+      const avoid = state.history.slice(-3).map(escapeForPrompt).filter(Boolean);
+
+      const ruAudience = {
+        friend: "to a friend",
+        family: "to family",
+        colleague: "to a colleague",
+        client: "to clients/partners",
+        universal: "universal (suits almost everyone)",
+      }[audience] || "universal";
+
+      const ruStyle = {
+        warm: "warm and sincere",
+        funny: "with light humor, but clean",
+        formal: "formal and correct",
+        poetic: "slightly poetic, figurative",
+        ai: "tech-AI: associations with neural networks, data, light, smart future (not too much)",
+      }[style] || "warm";
+
+      const ruLen = {
+        short: "1–2 short sentences",
+        medium: "3–5 sentences",
+        long: "6–9 sentences",
+      }[len] || "3–5 sentences";
+
+      const enAudience = {
+        friend: "a friend",
+        family: "family",
+        colleague: "a colleague",
+        client: "clients/partners",
+        universal: "anyone (universal)",
+      }[audience] || "anyone";
+
+      const enStyle = {
+        warm: "warm and sincere",
+        funny: "lightly funny, clean",
+        formal: "formal and professional",
+        poetic: "slightly poetic",
+        ai: "tech-AI vibe: data, light, neural networks, smart future (not too much)",
+      }[style] || "warm";
+
+      const enLen = {
+        short: "1–2 short sentences",
+        medium: "3–5 sentences",
+        long: "6–9 sentences",
+      }[len] || "3–5 sentences";
+
+      let userPrompt, systemPrompt;
+
+      if (lang === "ru") {
+        systemPrompt =
+          "You are a New Year greetings generator. Respond ONLY with greeting text, no headers, no explanations, no rule lists.";
+        userPrompt =
+          `Generate ONE unique New Year greeting in Russian for: ${ruAudience}.
+Style: ${ruStyle}. Length: ${ruLen}.
+Mention the New Year ${year} (you can use "${year}" or "in the new year"). You can use 0–2 emojis if appropriate.
+If a theme is specified — weave it in carefully: ${theme ? '"' + theme + '"' : "theme not specified"}.
+Don't use clichés like "let all dreams come true" and "happiness, health, luck" directly — rephrase freshly.
+End with one beautiful final line.`;
+
+        if (avoid.length) {
+          userPrompt += `\nDo not repeat verbatim or closely in wording these previous versions: ${avoid.join(" | ")}.`;
+        }
+      } else {
+        systemPrompt =
+          "You generate New Year greetings. Output ONLY the greeting text. No explanations, no headings, no bullet rules.";
+        userPrompt =
+          `Write ONE unique New Year greeting in English for: ${enAudience}.
+Style: ${enStyle}. Length: ${enLen}.
+Mention the upcoming New Year (${year}) naturally. 0–2 emojis only if fitting.
+If a theme is given, weave it in gently: ${theme ? '"' + theme + '"' : "no theme"}.
+Avoid tired clichés; keep it fresh. End with a strong final line.`;
+
+        if (avoid.length) {
+          userPrompt += `\nAvoid repeating these previous versions too closely: ${avoid.join(" | ")}.`;
+        }
+      }
+
+      const messages = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ];
+
+      // fallback string prompt (in case model/tokenizer doesn't support chat template)
+      const fallbackPrompt = systemPrompt + "\n\n" + userPrompt + "\n\n";
+
+      return { messages, fallbackPrompt, tag: `${lang.toUpperCase()} • ${modelSel.value.split("/").pop()} • ${nowTag()}` };
+    }
+
+    function createGreetingCard(tag) {
+      const card = document.createElement("div");
+      card.className = "greeting";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const left = document.createElement("div");
+      left.innerHTML = `<span class="tag">${tag}</span>`;
+      const right = document.createElement("div");
+      right.textContent = "generating…";
+      right.className = "tiny";
+      meta.appendChild(left);
+      meta.appendChild(right);
+
+      const body = document.createElement("div");
+      body.textContent = "";
+
+      card.appendChild(meta);
+      card.appendChild(body);
+      feed.prepend(card);
+
+      return { card, metaRight: right, body };
+    }
+
+    function normalizeText(s) {
+      // neat cleanup: remove extra spaces, too long tails
+      return (s || "")
+        .replace(/\r/g, "")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+
+    // Template fallback (if model doesn't load/not enough memory)
+    function templateFallbackGreeting() {
+      const lang = langSel.value;
+      const style = styleSel.value;
+      const theme = (themeInp.value || "").trim();
+      const year = targetNewYear();
+
+      if (lang === "en") {
+        const openers = [
+          "Happy New Year!",
+          "Wishing you a bright New Year!",
+          `Hello ${year}!`,
+          "New Year, new momentum!",
+        ];
+        const middles = {
+          warm: ["May your days feel lighter, and your nights feel calm.", "May your year be full of people and moments you truly value."],
+          funny: ["May your bugs be few and your coffee be strong.", "May the only thing that overflows be your joy (not your inbox)."],
+          formal: ["Wishing you a successful and inspiring year ahead.", "May the new year bring steady progress and meaningful achievements."],
+          poetic: ["May the year unfold like a clean snowfall—quiet, bright, and new.", "May your path glow softly, step by step, all year long."],
+          ai: ["May your year be well-tuned: low noise, high signal, and joyful iterations.", "May your life find great ‘features’: clarity, warmth, and smart surprises."],
+        };
+        const closers = [
+          "Cheers to a beautiful year ahead.",
+          "Let’s make this year kind and bold.",
+          "To new beginnings — and better days.",
+        ];
+        const m = (middles[style] || middles.warm);
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        const t = theme ? ` Theme: ${theme}.` : "";
+        return `${pick(openers)} ${pick(m)}${t}\n${pick(closers)} 🎄`;
+      } else {
+        const openers = [
+          "Happy New Year!",
+          `Let ${year} start beautifully!`,
+          "Happy upcoming New Year!",
+          "New Year — new chapter!",
+        ];
+        const middles = {
+          warm: ["May your home be warm, and your heart be calm.", "May people you can breathe easily with be nearby."],
+          funny: ["May deadlines not catch up, but joy does.", "May everything unnecessary 'log out', and the necessary stay."],
+          formal: ["I wish you confident growth, clear goals and worthy results.", "May the new year bring stability and strong reasons to be proud of yourself."],
+          poetic: ["May the year settle on life like fresh snow — quiet and bright.", "May each day be a small light in a long beautiful garland."],
+          ai: ["May there be less noise and more signal in the new year — in affairs and in your head.", "May your year be like a good model: stable, accurate and with pleasant discoveries."],
+        };
+        const closers = [
+          "May there be a lot of light — inside and around.",
+          "Take care of yourself — and know how to enjoy the simple things.",
+          "May everything important turn out softly and on time.",
+        ];
+        const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+        const m = (middles[style] || middles.warm);
+        const t = theme ? ` Theme: "${theme}".` : "";
+        return `${pick(openers)} ${pick(m)}${t}\n${pick(closers)} 🎄`;
+      }
+    }
+
+    function createWorker() {
+      // Module worker with CDN import (Transformers.js).
+      const workerCode = `
+        import { pipeline, env, TextStreamer } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.0";
+
+        env.allowLocalModels = false;
+        env.useBrowserCache = true;
+
+        let generator = null;
+        let loaded = { model: null, device: null, dtype: null };
+
+        function post(type, payload = {}) { self.postMessage({ type, ...payload }); }
+
+        async function loadModel({ model, device, dtype }) {
+          if (generator && loaded.model === model && loaded.device === device && loaded.dtype === dtype) {
+            post("status", { state: "ready", message: "Model already loaded" });
+            return;
+          }
+
+          generator = null;
+          loaded = { model, device, dtype };
+
+          post("status", { state: "loading", message: "Loading model…" });
+
+          const progress_callback = (info) => {
+            // info may contain: status/name/file/loaded/total (depends on server)
+            post("progress", { info });
+          };
+
+          const opts = { device, progress_callback };
+          if (dtype) opts.dtype = dtype;
+
+          generator = await pipeline("text-generation", model, opts);
+
+          post("status", { state: "ready", message: "Ready" });
+        }
+
+        function extractText(output) {
+          // output is usually an array with { generated_text: ... }
+          let gen = output?.[0]?.generated_text ?? output?.generated_text ?? output;
+          if (Array.isArray(gen)) {
+            const last = gen[gen.length - 1];
+            if (typeof last === "string") return last;
+            if (last?.content) return last.content;
+            return JSON.stringify(last);
+          }
+          if (typeof gen === "string") return gen;
+          return String(gen ?? "");
+        }
+
+        async function generate({ requestId, messages, prompt, options }) {
+          if (!generator) throw new Error("Generator not loaded");
+          // Stream tokens back
+          const streamer = new TextStreamer(generator.tokenizer, {
+            skip_prompt: true,
+            callback_function: (text) => {
+              post("token", { requestId, text });
+            }
+          });
+
+          let out;
+          try {
+            out = await generator(messages ?? prompt, { ...options, streamer });
+          } catch (e) {
+            // Fallback: if chat-template path fails, try plain string prompt
+            out = await generator(prompt, { ...options, streamer });
+          }
+
+          post("done", { requestId, text: extractText(out) });
+        }
+
+        self.onmessage = async (ev) => {
+          const msg = ev.data || {};
+          try {
+            if (msg.type === "load") {
+              await loadModel(msg);
+            } else if (msg.type === "generate") {
+              await generate(msg);
+            }
+          } catch (err) {
+            post("error", { requestId: msg.requestId ?? null, message: err?.message ?? String(err) });
+          }
+        };
+      `;
+
+      const blob = new Blob([workerCode], { type: "text/javascript" });
+      const url = URL.createObjectURL(blob);
+      const w = new Worker(url, { type: "module" });
+      URL.revokeObjectURL(url);
+      return w;
+    }
+
+    function ensureWorker() {
+      if (state.worker) return;
+
+      state.worker = createWorker();
+
+      state.worker.onmessage = (ev) => {
+        const msg = ev.data || {};
+        if (msg.type === "status") {
+          if (msg.state === "loading") {
+            setStatus("Status: loading model…", msg.message || "");
+          } else if (msg.state === "ready") {
+            setStatus("Status: ready ✅", msg.message || "", 100, "var(--ok)");
+            if (state.loadResolve) {
+              state.loadResolve();
+              state.loadResolve = state.loadReject = state.loadPromise = null;
+            }
+          }
+          return;
+        }
+
+        if (msg.type === "progress") {
+          const info = msg.info || {};
+          const loaded = Number(info.loaded || 0);
+          const total = Number(info.total || 0);
+          const pct = total > 0 ? (loaded / total) * 100 : null;
+          const name = info.name || info.file || info.status || "download";
+          setStatus("Status: loading model…", `${name}${total>0 ? ` • ${(loaded/1024/1024).toFixed(1)}MB / ${(total/1024/1024).toFixed(1)}MB` : ""}`, pct);
+          return;
+        }
+
+        if (msg.type === "token") {
+          const item = state.pending.get(msg.requestId);
+          if (!item) return;
+          item.body.textContent += msg.text;
+          return;
+        }
+
+        if (msg.type === "done") {
+          const item = state.pending.get(msg.requestId);
+          if (!item) return;
+          item.metaRight.textContent = "ready";
+          item.body.textContent = normalizeText(item.body.textContent);
+          const finalText = normalizeText(item.body.textContent || msg.text || "");
+          if (finalText) {
+            state.history.push(finalText);
+            if (state.history.length > state.historyMax) state.history = state.history.slice(-state.historyMax);
+          }
+          state.pending.delete(msg.requestId);
+          state.currentEl = null;
+
+          if (state.running) scheduleNext();
+          return;
+        }
+
+        if (msg.type === "error") {
+          const rid = msg.requestId;
+          if (rid != null && state.pending.has(rid)) {
+            const item = state.pending.get(rid);
+            item.metaRight.textContent = "error";
+            item.body.textContent = normalizeText(item.body.textContent);
+            state.pending.delete(rid);
+          }
+          // Mark LLM as broken, switch to template mode
+          state.llmBroken = true;
+          setStatus("Status: LLM error — template mode enabled ⚠️", msg.message || "", null, "var(--warn)");
+          if (state.running) scheduleNext();
+        }
+      };
+    }
+
+    function destroyWorker() {
+      if (state.worker) {
+        state.worker.terminate();
+        state.worker = null;
+      }
+      state.loadPromise = state.loadResolve = state.loadReject = null;
+      state.pending.clear();
+      state.currentEl = null;
+    }
+
+    function loadModelIfNeeded() {
+      ensureWorker();
+      state.llmBroken = false;
+
+      const model = modelSel.value;
+      const device = (useWebGPUChk.checked && webgpuAvailable) ? "webgpu" : "wasm";
+      const dtype = dtypeSel.value || "";
+
+      setStatus("Status: loading model…", `${model} • device=${device}${dtype ? ` • dtype=${dtype}` : ""}`);
+
+      state.loadPromise = new Promise((resolve, reject) => {
+        state.loadResolve = resolve;
+        state.loadReject = reject;
+      });
+
+      state.worker.postMessage({ type: "load", model, device, dtype });
+
+      return state.loadPromise;
+    }
+
+    function requestGenerateOnce() {
+      const { messages, fallbackPrompt, tag } = buildMessagesAndPrompt();
+      const temperature = Number(tempInp.value);
+      const max_new_tokens = Number(maxNewInp.value);
+      const intervalSec = Math.max(2, Number(intervalInp.value) || 7);
+
+      // create UI card
+      const { card, metaRight, body } = createGreetingCard(tag);
+      metaRight.textContent = "generating…";
+
+      // if LLM is broken -> template fallback
+      if (state.llmBroken) {
+        const text = templateFallbackGreeting();
+        body.textContent = text;
+        metaRight.textContent = "template";
+        state.history.push(normalizeText(text));
+        if (state.history.length > state.historyMax) state.history = state.history.slice(-state.historyMax);
+        if (state.running) {
+          clearTimeout(state.timer);
+          state.timer = setTimeout(() => scheduleNext(), intervalSec * 1000);
+        }
+        return;
+      }
+
+      // send generation to worker
+      const requestId = ++state.requestId;
+      state.pending.set(requestId, { card, metaRight, body, startedAt: Date.now() });
+
+      const options = {
+        max_new_tokens,
+        temperature,
+        top_p: 0.95,
+        do_sample: true,
+        repetition_penalty: 1.15,
+      };
+
+      setStatus("Status: generating…", `request #${requestId}`);
+
+      state.worker.postMessage({
+        type: "generate",
+        requestId,
+        messages,
+        prompt: fallbackPrompt,
+        options,
+      });
+    }
+
+    function scheduleNext(delayMs = null) {
+      clearTimeout(state.timer);
+      if (!state.running) return;
+
+      const intervalSec = Math.max(2, Number(intervalInp.value) || 7);
+      const wait = (delayMs == null) ? (intervalSec * 1000) : delayMs;
+
+      state.timer = setTimeout(() => {
+        if (!state.running) return;
+        requestGenerateOnce();
+      }, wait);
+    }
+
+    async function start() {
+      if (state.running) return;
+      state.running = true;
+
+      // Always try to load model once on start
+      try {
+        await loadModelIfNeeded();
+        setStatus("Status: stream started ✅", "generating…", 100, "var(--ok)");
+      } catch (e) {
+        state.llmBroken = true;
+        setStatus("Status: failed to load LLM — template mode ⚠️", String(e?.message || e), null, "var(--warn)");
+      }
+
+      scheduleNext(0);
+    }
+
+    function stop() {
+      state.running = false;
+      clearTimeout(state.timer);
+      // Hard stop: kill worker to interrupt generation instantly
+      destroyWorker();
+      setStatus("Status: stopped", "worker stopped");
+    }
+
+    function nextOnce() {
+      // manual one-shot (does not require running loop)
+      if (state.running) {
+        requestGenerateOnce();
+      } else {
+        // if not running: do a single generation
+        (async () => {
+          try {
+            await loadModelIfNeeded();
+          } catch (e) {
+            state.llmBroken = true;
+          }
+          requestGenerateOnce();
+        })();
+      }
+    }
+
+    function clearFeed() {
+      feed.innerHTML = "";
+      state.history = [];
+    }
+
+    // Events
+    startBtn.addEventListener("click", start);
+    stopBtn.addEventListener("click", stop);
+    nextBtn.addEventListener("click", nextOnce);
+    clearBtn.addEventListener("click", clearFeed);
+
+    // keyboard: Enter -> next
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        nextOnce();
+      }
+    });
+
+    // If model settings change while running: restart worker+reload model (cleanest)
+    for (const el of [modelSel, useWebGPUChk, dtypeSel]) {
+      el.addEventListener("change", async () => {
+        if (!state.running) return;
+        // restart flow fast
+        destroyWorker();
+        try {
+          await loadModelIfNeeded();
+          setStatus("Status: model switched ✅", "", 100, "var(--ok)");
+        } catch (e) {
+          state.llmBroken = true;
+          setStatus("Status: loading error — template mode ⚠️", String(e?.message || e), null, "var(--warn)");
+        }
+      });
+    }
+  </script>
+</body>
+</html>
