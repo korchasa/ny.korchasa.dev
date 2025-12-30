@@ -271,8 +271,7 @@ const ui = {
     statusText: document.getElementById('status-text'),
     progress: document.getElementById('progress-track'),
     progressFill: document.querySelector('.progress-fill'),
-    pauseOverlay: document.getElementById('pause-overlay'),
-    loadingText: document.getElementById('loading-text')
+    pauseOverlay: document.getElementById('pause-overlay')
 };
 
 const engine = new LLMEngine();
@@ -313,7 +312,6 @@ function autoStart() {
 
     engine.onStatus = (msg) => {
         if (!ui.greetingDisplay.classList.contains('active')) {
-            if (ui.loadingText) ui.loadingText.textContent = msg;
             ui.statusText.textContent = msg;
 
             if (msg === "Neural core active") {

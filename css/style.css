@@ -149,7 +149,7 @@ h1 {
 /* Status / Progress - Centered */
 .status-bar-center {
     font-family: 'Fira Code', monospace;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     color: var(--text-secondary);
     display: flex;
     flex-direction: column;
