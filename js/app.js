@@ -617,15 +617,7 @@ class Typewriter {
                 currentWordSpan.textContent += char;
             }
 
-            // Throttle Auto-scroll (every 50ms max)
-            const now = Date.now();
-            if (now - lastScrollTime > 50) {
-                 window.scrollTo({
-                    top: document.body.scrollHeight,
-                    behavior: 'smooth'
-                });
-                lastScrollTime = now;
-            }
+            // Auto-scroll removed for vertical center layout
 
             // Human-like delay
             let delay = 30 + Math.random() * 50;
@@ -635,11 +627,7 @@ class Typewriter {
             await new Promise(r => setTimeout(r, delay));
         }
 
-        // Final scroll
-        window.scrollTo({
-            top: document.body.scrollHeight,
-            behavior: 'smooth'
-        });
+        // Final scroll removed
     }
 }
 
@@ -792,12 +780,8 @@ function startApp() {
     if (hasStarted) return;
     hasStarted = true;
 
-    ui.intro.classList.add('hidden');
-    // Hide startup UI elements
+    // Only hide the button as requested
     if (ui.startBtn) ui.startBtn.classList.add('hidden');
-    if (ui.statusText) ui.statusText.classList.add('hidden');
-    if (ui.progress) ui.progress.classList.add('hidden');
-    if (ui.spinner) ui.spinner.classList.add('hidden');
 
     if (isPaused) {
         togglePause();
@@ -858,7 +842,8 @@ function pruneOldText() {
     const reloadThreshold = -window.innerHeight * 2; // Extra buffer
 
     // We can just remove the first child if we have too many
-    if (blocks.length > 5) {
+    // For centered layout, keep only 1-2 blocks to maintain vertical center of the current text
+    if (blocks.length > 2) {
         ui.greetingContent.removeChild(blocks[0]);
     }
 }

@@ -96,28 +96,20 @@ h1 {
     width: 100%;
     height: 100%;
     position: absolute;
-    top: 80px;
+    top: 0;
     left: 0;
     overflow-y: hidden;
-    /* We handle scroll manually or just let it flow? continuous flow usually means auto-scroll */
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    /* Start from bottom? or top? continuous usually means appending */
+    justify-content: center;
     align-items: flex-start;
-    /* Full width text usually starts left, but maybe centered? Let's keep it legible. */
-    padding-bottom: 4vh;
-    /* Space at bottom - closer than 10vh but clear of monitor bottom */
     z-index: 5;
     pointer-events: none;
-    /* Let clicks pass through to body for pause */
 }
 
 .greeting-content {
     width: 100%;
-    /* display: flex; flex-direction: column; if we want blocks. */
     padding: 2rem 15rem 2rem 4rem;
-    /* Increased right padding to avoid statistics (15rem ~ 240px) */
     text-align: left;
 }
 
