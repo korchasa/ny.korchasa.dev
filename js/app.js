@@ -710,7 +710,7 @@ function autoStart() {
     if (ui.startBtn) {
         ui.startBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            startApp();
+            ui.startBtn.classList.add('hidden');
         });
     }
 
@@ -736,13 +736,10 @@ function autoStart() {
 
             if (isReadySignal) {
                 if (ui.spinner) ui.spinner.classList.add('hidden');
-                if (ui.progress) ui.progress.classList.remove('visible');
-                if (ui.startBtn) ui.startBtn.textContent = engine.slopify("Enter the Void");
-
-                // If user already started, trigger the first generation
-                if (hasStarted && !engine.isGenerating && queue.length === 0 && !isTyping) {
-                    engine.generateGreeting();
-                }
+                if (ui.intro) ui.intro.classList.add('hidden');
+                
+                // Automatically start the app when engine is ready
+                startApp();
             }
         };
     });
