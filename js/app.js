@@ -736,6 +736,7 @@ function autoStart() {
 
             if (isReadySignal) {
                 if (ui.spinner) ui.spinner.classList.add('hidden');
+                if (ui.progress) ui.progress.classList.remove('visible');
                 if (ui.startBtn) ui.startBtn.textContent = engine.slopify("Enter the Void");
 
                 // If user already started, trigger the first generation
