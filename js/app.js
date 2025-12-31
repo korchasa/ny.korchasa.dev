@@ -1,5 +1,5 @@
-import { WORKER_CODE } from './llm-worker.js';
-import { LANGUAGES, DEFAULT_LANG } from './languages.js';
+import { WORKER_CODE } from './llm-worker.js?v=20251231';
+import { LANGUAGES, DEFAULT_LANG } from './languages.js?v=20251231';
 
 // const MODEL_CONFIG = {
 //     id: "smollm2-135m",
